@@ -1,0 +1,60 @@
+pool:
+  vmImage: 'Ubuntu-16.04'
+
+steps:
+- script: |
+    sudo apt-get update && sudo apt-get install -y --no-install-recommends \
+      curl gnupg2 lsb-release
+    curl http://repo.ros2.org/repos.key | sudo apt-key add -
+    echo "deb [arch=amd64,arm64] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/ros2-latest.list
+    sudo apt-get update
+  displayName: 'Add ROS2 APT repository'
+
+- script: |
+    sudo apt-get update && sudo apt-get install -y --no-install-recommends \
+      python3-pip \
+      python3-rosdep \
+      python3-vcstool \
+      python3-catkin-pkg \
+      python3-empy
+    python3 -m pip install -U \
+      argcomplete \
+      flake8 \
+      flake8-blind-except \
+      flake8-builtins \
+      flake8-class-newline \
+      flake8-comprehensions \
+      flake8-deprecated \
+      flake8-docstrings \
+      flake8-import-order \
+      flake8-quotes \
+      pytest-repeat \
+      pytest-rerunfailures \
+      pytest \
+      pytest-cov \
+      pytest-runner \
+      setuptools
+    sudo apt install --no-install-recommends -y \
+      libasio-dev \
+      libtinyxml2-dev
+  displayName: 'Install dependencies'
+
+- script: |
+    curl https://sh.rustup.rs -sSf | sh -s -- -y
+    echo "##vso[task.setvariable variable=PATH;]$PATH:$HOME/.cargo/bin"
+  displayName: Install rust
+
+- script : |
+    set -x
+    mkdir -p ~/ros2_rust_ws/src
+    cd ~/ros2_rust_ws
+    cp -av $(Build.Repository.LocalPath)/ros2_rust.repos ~/ros2_rust_ws
+    vcs import ~/ros2_rust_ws/src < ros2_rust.repos
+    find ~/ros2_rust_ws/src
+    rm -rfv ~/ros2_rust_ws/src/ros2_rust/ros2_rust
+    cp -av $(Build.Repository.LocalPath)/ros2_rust.repos ~/ros2_rust_ws/src/ros2_rust/ros2_rust
+    cd ~/ros2_rust_ws/src/ros2/rosidl_typesupport
+    patch -p1 < ../../ros2_rust/ros2_rust/rosidl_typesupport_ros2_rust.patch
+    cd ~/ros2_rust_ws
+    src/ament/ament_tools/scripts/ament.py build --isolated
+  displayName: Build ros2-rust for Linux
