@@ -3,11 +3,22 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 
 use anyhow::{Error, Result};
+use rclrs::node_traits::ComponentNode;
 
 struct MinimalSubscriber {
     num_messages: AtomicU32,
     node: Arc<rclrs::Node>,
     subscription: Mutex<Option<Arc<rclrs::Subscription<std_msgs::msg::String>>>>,
+}
+
+impl ComponentNode for MinimalSubscriber {
+    fn node(&self) -> &rclrs::Node {
+        self.node
+    }
+
+    fn node(&self) -> &Arc<rclrs::Node> {
+        self.node
+    }
 }
 
 impl MinimalSubscriber {
@@ -70,8 +81,8 @@ fn main() -> Result<(), Error> {
     let executor = rclrs::SingleThreadedExecutor::new();
 
     executor.add_node(&publisher_node)?;
-    executor.add_node(&subscriber_node_one.node)?;
-    executor.add_node(&subscriber_node_two.node)?;
+    executor.add_node(&subscriber_node_one.node())?;
+    executor.add_node(&subscriber_node_two.node())?;
 
     executor.spin().map_err(|err| err.into())
 }

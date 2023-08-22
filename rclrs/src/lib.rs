@@ -11,6 +11,7 @@ mod context;
 mod error;
 mod executor;
 mod node;
+pub mod node_traits;
 mod parameter;
 mod publisher;
 mod qos;
