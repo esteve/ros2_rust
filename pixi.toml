@@ -1,0 +1,31 @@
+[project]
+authors = ["Esteve Fernandez <esteve@apache.org>"]
+channels = ["robostack-staging", "conda-forge"]
+description = "Package containing the Rust client library."
+name = "ros2_rust"
+platforms = ["linux-64"]
+version = "0.4.1"
+
+[tasks]
+install-cargo-ament-build = "cargo install cargo-ament-build"
+build = { cmd = "colcon build", depends-on = ["install-cargo-ament-build"] }
+
+[activation]
+env = { ROS_DISTRO = "humble" }
+scripts = ["install/setup.bash", "install/local_setup.bash"]
+
+[dependencies]
+ros-humble-rcl = ">=5.3.7,<6"
+ros-humble-builtin-interfaces = ">=1.2.1,<2"
+ros-humble-rcl-interfaces = ">=1.2.1,<2"
+ros-humble-rosgraph-msgs = ">=1.2.1,<2"
+clangdev = ">=18.1.8,<19"
+rust = ">=1.80.0,<2"
+ros-humble-rosidl-default-generators = ">=1.2.0,<2"
+
+[build-dependencies]
+colcon-common-extensions = ">=0.3.0,<0.4"
+
+[pypi-dependencies]
+colcon-cargo = { git = "https://github.com/colcon/colcon-cargo.git" }
+colcon-ros-cargo = { git = "https://github.com/colcon/colcon-ros-cargo.git" }
