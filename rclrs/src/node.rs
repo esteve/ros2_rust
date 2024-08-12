@@ -317,10 +317,25 @@ impl Node {
 
     pub fn create_generic_subscription<Args>(
         &self,
-        topic: &str,
-        message_type : &str,
+        topic_name: &str,
+        topic_type: &str,
         qos: QoSProfile,
-    ) -> () { ()
+    ) -> () {
+        let ts_lib = rclrs::get_typesupport_library(topic_type, "rosidl_typesupport_c");
+
+        let subscription = Arc::new(GenericSubscription::new(
+            Arc::clone(&self.handle),
+            ts_lib,
+            topic_name,
+            topic_type,
+            qos,
+            any_subscription_callback,
+            options,
+        )?);
+        { self.subscriptions_mtx.lock() }
+            .unwrap()
+            .push(Arc::downgrade(&subscription) as Weak<dyn SubscriptionBase>);
+        Ok(subscription)
     }
 
     /// Returns the subscriptions that have not been dropped yet.
