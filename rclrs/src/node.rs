@@ -315,6 +315,14 @@ impl Node {
         Ok(subscription)
     }
 
+    pub fn create_generic_subscription<Args>(
+        &self,
+        topic: &str,
+        message_type : &str,
+        qos: QoSProfile,
+    ) -> () { ()
+    }
+
     /// Returns the subscriptions that have not been dropped yet.
     pub(crate) fn live_subscriptions(&self) -> Vec<Arc<dyn SubscriptionBase>> {
         { self.subscriptions_mtx.lock().unwrap() }
