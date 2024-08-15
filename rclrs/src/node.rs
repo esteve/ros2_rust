@@ -321,7 +321,7 @@ impl Node {
         topic_type: &str,
         qos: QoSProfile,
     ) -> () {
-        let ts_lib = rclrs::get_typesupport_library(topic_type, "rosidl_typesupport_c");
+        let ts_lib = rclrs::dynamic_message::get_typesupport_library(topic_type, "rosidl_typesupport_c");
 
         let subscription = Arc::new(GenericSubscription::new(
             Arc::clone(&self.handle),

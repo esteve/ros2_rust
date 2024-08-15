@@ -27,7 +27,6 @@ mod test_helpers;
 
 mod rcl_bindings;
 
-#[cfg(feature = "dyn_msg")]
 pub mod dynamic_message;
 
 use std::{sync::Arc, time::Duration};
@@ -110,19 +109,6 @@ pub fn create_node(context: &Context, node_name: &str) -> Result<Arc<Node>, Rclr
 /// ```
 pub fn create_node_builder(context: &Context, node_name: &str) -> NodeBuilder {
     Node::builder(context, node_name)
-}
-
-pub fn get_typesupport_library_path(package_name: &str, typesupport_identifier: &str) -> String {
-    format!(
-        "{}/lib{}_rust.so",
-        package_name, typesupport_identifier
-    )
-}
-
-pub fn get_typesupport_library(full_type: &str, typesupport_identifier: &str) -> Result<libloading::Library, libloading::Error> {
-    let (package_name, _, _) = rclrs::extract_type_identifier(full_type);
-    let library_path = rclrs::get_typesupport_library_path(package_name, typesupport_identifier);
-    libloading::Library::new(library_path)
 }
 
 pub fn extract_type_identifier(full_type: &str) -> (&str, &str, &str) {

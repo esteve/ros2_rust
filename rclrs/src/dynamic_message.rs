@@ -65,11 +65,11 @@ pub struct DynamicMessageMetadata {
 
 // ========================= impl for DynamicMessagePackage =========================
 
-/// This is an analogue of rclcpp::get_typesupport_library.
-fn get_type_support_library(
+/// This is an analogue of rclcpp::get_typesupport_library_path.
+fn get_typesupport_library_path(
     package_name: &str,
     type_support_identifier: &str,
-) -> Result<Arc<libloading::Library>, DynamicMessageError> {
+) -> Result<&str, DynamicMessageError> {
     use DynamicMessageError::RequiredPrefixNotSourced;
     // Creating this is pretty cheap, it just parses an env var
     let ament = ament_rs::Ament::new().map_err(|_| RequiredPrefixNotSourced {
@@ -95,9 +95,18 @@ fn get_type_support_library(
         "lib{}__{}.so",
         &package_name, type_support_identifier
     ));
+    Ok(library_path)
+}
+
+pub fn get_typesupport_library(
+    full_type: &str,
+    typesupport_identifier: &str,
+) -> Result<Arc<libloading::Library>, DynamicMessageError> {
+    let (package_name, _, _) = rclrs::extract_type_identifier(full_type);
+    let library_path = rclrs::get_typesupport_library_path(package_name, typesupport_identifier)?;
     Ok({
         // SAFETY: This function is unsafe because it may execute initialization/termination routines
-        // contained in the library. A type support library should not cause problems there.
+        // contained in the library. A typesupport library should not cause problems there.
         let lib = unsafe { libloading::Library::new(library_path) };
         let lib = lib.map_err(DynamicMessageError::LibraryLoadingError)?;
         Arc::new(lib)
@@ -139,11 +148,16 @@ impl DynamicMessagePackage {
     /// This dynamically loads a type support library for the specified package.
     pub fn new(package_name: impl Into<String>) -> Result<Self, DynamicMessageError> {
         let package_name = package_name.into();
+        let library_path = rclrs::get_typesupport_library_path(
+            package_name,
+            INTROSPECTION_TYPE_SUPPORT_IDENTIFIER,
+        )?;
+        let lib = unsafe { libloading::Library::new(library_path) };
+        let lib = lib.map_err(DynamicMessageError::LibraryLoadingError)?;
+
+        let introspection_type_support_library = Arc::new(lib);
         Ok(Self {
-            introspection_type_support_library: get_type_support_library(
-                &package_name,
-                INTROSPECTION_TYPE_SUPPORT_IDENTIFIER,
-            )?,
+            introspection_type_support_library: introspection_type_support_library,
             package: package_name,
         })
     }

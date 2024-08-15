@@ -15,7 +15,7 @@ path = "src/lib.rs"
 # and also state why each dependency is needed.
 [dependencies]
 # Needed for dynamically finding type support libraries
-ament_rs = { version = "0.2", optional = true }
+ament_rs = { version = "0.2" }
 
 # Needed for uploading documentation to docs.rs
 cfg-if = "1.0.0"
@@ -24,7 +24,7 @@ cfg-if = "1.0.0"
 futures = "0.3"
 
 # Needed for dynamic messages
-libloading = { version = "0.8", optional = true }
+libloading = { version = "0.8" }
 
 # Needed for the Message trait, among others
 rosidl_runtime_rs = { git = "https://github.com/esteve/ros2_rust.git", branch = "generic-subscriptions" }
@@ -45,7 +45,6 @@ cfg-if = "1.0.0"
 
 [features]
 default = []
-dyn_msg = ["ament_rs", "libloading"]
 # This feature is solely for the purpose of being able to generate documetation without a ROS installation
 # The only intended usage of this feature is for docs.rs builders to work, and is not intended to be used by end users
 generate_docs = ["rosidl_runtime_rs/generate_docs"]

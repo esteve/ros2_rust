@@ -317,8 +317,6 @@ where
 }
 
 pub struct GenericSubscription
-where
-    T: Message,
 {
     pub(crate) handle: Arc<SubscriptionHandle>,
     /// The callback function that runs when a message was received.
