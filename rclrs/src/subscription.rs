@@ -316,6 +316,16 @@ where
     }
 }
 
+pub struct GenericSubscription
+where
+    T: Message,
+{
+    pub(crate) handle: Arc<SubscriptionHandle>,
+    /// The callback function that runs when a message was received.
+    pub callback: Mutex<AnySubscriptionCallback<T>>,
+    message: PhantomData<T>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
