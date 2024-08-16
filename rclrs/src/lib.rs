@@ -111,7 +111,7 @@ pub fn create_node_builder(context: &Context, node_name: &str) -> NodeBuilder {
     Node::builder(context, node_name)
 }
 
-pub fn extract_type_identifier(full_type: &str) -> (&str, &str, &str) {
+pub fn extract_type_identifier(full_type: &str) -> Result<(String, String, String), RclrsError> {
     let type_separator = "/";
 
     let sep_position_back = full_type.rfind(type_separator)?;
@@ -129,6 +129,6 @@ pub fn extract_type_identifier(full_type: &str) -> (&str, &str, &str) {
         ""
     };
 
-    let type_name = full_type.get(sep_position_back + 1..full_type.len())?
-    (package_name, middle_module, type_name)
+    let type_name = full_type.get(sep_position_back + 1..full_type.len())?;
+    Ok((package_name.to_string(), middle_module.to_string(), type_name.to_string()))
 }

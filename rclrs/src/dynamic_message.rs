@@ -69,7 +69,7 @@ pub struct DynamicMessageMetadata {
 fn get_typesupport_library_path(
     package_name: &str,
     type_support_identifier: &str,
-) -> Result<&str, DynamicMessageError> {
+) -> Result<String, DynamicMessageError> {
     use DynamicMessageError::RequiredPrefixNotSourced;
     // Creating this is pretty cheap, it just parses an env var
     let ament = ament_rs::Ament::new().map_err(|_| RequiredPrefixNotSourced {
@@ -117,7 +117,7 @@ pub fn get_typesupport_library(
 ///
 /// It is unsafe because it would be theoretically possible to pass in a library that has
 /// the expected symbol defined, but with an unexpected type.
-unsafe fn get_type_support_handle(
+unsafe fn get_typesupport_handle(
     type_support_library: &libloading::Library,
     type_support_identifier: &str,
     message_type: &MessageTypeName,
@@ -148,7 +148,7 @@ impl DynamicMessagePackage {
     /// This dynamically loads a type support library for the specified package.
     pub fn new(package_name: impl Into<String>) -> Result<Self, DynamicMessageError> {
         let package_name = package_name.into();
-        let library_path = rclrs::get_typesupport_library_path(
+        let library_path = get_typesupport_library_path(
             package_name,
             INTROSPECTION_TYPE_SUPPORT_IDENTIFIER,
         )?;
@@ -174,13 +174,13 @@ impl DynamicMessagePackage {
         // assuming the install dir hasn't been tampered with.
         // The pointer returned by this function is kept valid by keeping the library loaded.
         let type_support_ptr = unsafe {
-            get_type_support_handle(
+            get_typesupport_handle(
                 self.introspection_type_support_library.as_ref(),
                 INTROSPECTION_TYPE_SUPPORT_IDENTIFIER,
                 &message_type,
             )?
         };
-        // SAFETY: The pointer returned by get_type_support_handle() is always valid.
+        // SAFETY: The pointer returned by get_typesupport_handle() is always valid.
         let type_support = unsafe { &*type_support_ptr };
         debug_assert!(!type_support.data.is_null());
         let message_members: &rosidl_message_members_t =

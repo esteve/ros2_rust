@@ -318,10 +318,20 @@ where
 
 pub struct GenericSubscription
 {
-    pub(crate) handle: Arc<SubscriptionHandle>,
-    /// The callback function that runs when a message was received.
-    pub callback: Mutex<AnySubscriptionCallback<T>>,
-    message: PhantomData<T>,
+}
+
+impl GenericSubscription
+{
+    pub fn new<Args>(
+        node_handle: Arc<NodeHandle>,
+        topic: &str,
+        type_name: &str,
+        qos: QoSProfile,
+        callback: impl SubscriptionCallback<SerializedMessage, Args>,
+    ) -> Result<Self, RclrsError>
+    {
+        Ok(Self {})
+    }
 }
 
 #[cfg(test)]
