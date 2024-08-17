@@ -18,6 +18,8 @@ use crate::rcl_bindings::{
 mod error;
 pub use error::*;
 
+use rosidl_runtime_rs::Message;
+
 /// Factory for constructing messages in a certain package dynamically.
 ///
 /// This is the result of loading the introspection type support library (which is a per-package
@@ -39,7 +41,7 @@ struct DynamicMessagePackage {
 
 /// A parsed/validated message type name of the form `<package_name>/msg/<type_name>`.
 #[derive(Clone, Debug, PartialEq, Eq)]
-struct MessageTypeName {
+pub struct MessageTypeName {
     /// The package name, which acts as a namespace.
     pub package_name: String,
     /// The name of the message type in the package.
@@ -95,15 +97,15 @@ fn get_typesupport_library_path(
         "lib{}__{}.so",
         &package_name, type_support_identifier
     ));
-    Ok(library_path)
+    Ok(library_path.into_os_string().into_string().unwrap())
 }
 
 pub fn get_typesupport_library(
     full_type: &str,
     typesupport_identifier: &str,
 ) -> Result<Arc<libloading::Library>, DynamicMessageError> {
-    let (package_name, _, _) = rclrs::extract_type_identifier(full_type);
-    let library_path = rclrs::get_typesupport_library_path(package_name, typesupport_identifier)?;
+    let (package_name, _, _) = crate::extract_type_identifier(full_type).unwrap();
+    let library_path = get_typesupport_library_path(package_name.as_str(), typesupport_identifier)?;
     Ok({
         // SAFETY: This function is unsafe because it may execute initialization/termination routines
         // contained in the library. A typesupport library should not cause problems there.
@@ -117,7 +119,7 @@ pub fn get_typesupport_library(
 ///
 /// It is unsafe because it would be theoretically possible to pass in a library that has
 /// the expected symbol defined, but with an unexpected type.
-unsafe fn get_typesupport_handle(
+pub unsafe fn get_typesupport_handle(
     type_support_library: &libloading::Library,
     type_support_identifier: &str,
     message_type: &MessageTypeName,
@@ -148,10 +150,8 @@ impl DynamicMessagePackage {
     /// This dynamically loads a type support library for the specified package.
     pub fn new(package_name: impl Into<String>) -> Result<Self, DynamicMessageError> {
         let package_name = package_name.into();
-        let library_path = get_typesupport_library_path(
-            package_name,
-            INTROSPECTION_TYPE_SUPPORT_IDENTIFIER,
-        )?;
+        let library_path =
+            get_typesupport_library_path(package_name.as_str(), INTROSPECTION_TYPE_SUPPORT_IDENTIFIER)?;
         let lib = unsafe { libloading::Library::new(library_path) };
         let lib = lib.map_err(DynamicMessageError::LibraryLoadingError)?;
 
@@ -263,6 +263,29 @@ impl DynamicMessageMetadata {
         } = full_message_type.try_into()?;
         let pkg = DynamicMessagePackage::new(package_name)?;
         pkg.message_metadata(type_name)
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct SerializedMessage {}
+
+impl Message for SerializedMessage {
+    type RmwMsg = Self;
+    fn into_rmw_message(msg_cow: std::borrow::Cow<'_, Self>) -> std::borrow::Cow<'_, Self::RmwMsg> {
+        msg_cow
+    }
+    fn from_rmw_message(msg: Self::RmwMsg) -> Self {
+        msg
+    }
+}
+
+impl rosidl_runtime_rs::RmwMessage for SerializedMessage
+where
+    Self: Sized,
+{
+    const TYPE_NAME: &'static str = "SerializedMessage";
+    fn get_type_support() -> *const std::os::raw::c_void {
+        unimplemented!()
     }
 }
 

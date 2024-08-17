@@ -13,10 +13,10 @@ use rosidl_runtime_rs::Message;
 
 pub use self::{builder::*, graph::*};
 use crate::{
-    rcl_bindings::*, Client, ClientBase, Clock, Context, ContextHandle, GuardCondition,
-    ParameterBuilder, ParameterInterface, ParameterVariant, Parameters, Publisher, QoSProfile,
-    RclrsError, Service, ServiceBase, Subscription, SubscriptionBase, SubscriptionCallback,
-    TimeSource, ENTITY_LIFECYCLE_MUTEX,
+    get_typesupport_library, rcl_bindings::*, Client, ClientBase, Clock, Context, ContextHandle,
+    GenericSubscription, GuardCondition, ParameterBuilder, ParameterInterface, ParameterVariant,
+    Parameters, Publisher, QoSProfile, RclrsError, SerializedMessage, Service, ServiceBase,
+    Subscription, SubscriptionBase, SubscriptionCallback, TimeSource, ENTITY_LIFECYCLE_MUTEX,
 };
 
 // SAFETY: The functions accessing this type, including drop(), shouldn't care about the thread
@@ -320,8 +320,9 @@ impl Node {
         topic_name: &str,
         topic_type: &str,
         qos: QoSProfile,
-    ) -> () {
-        let ts_lib = dynamic_message::get_typesupport_library(topic_type, "rosidl_typesupport_c");
+        callback: impl SubscriptionCallback<SerializedMessage, Args>,
+    ) -> Result<Arc<GenericSubscription>, RclrsError> {
+        let ts_lib = get_typesupport_library(topic_type, "rosidl_typesupport_c").unwrap();
 
         let subscription = Arc::new(GenericSubscription::new(
             Arc::clone(&self.handle),
@@ -329,8 +330,7 @@ impl Node {
             topic_name,
             topic_type,
             qos,
-            any_subscription_callback,
-            options,
+            callback,
         )?);
         { self.subscriptions_mtx.lock() }
             .unwrap()

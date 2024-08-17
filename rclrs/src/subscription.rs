@@ -8,9 +8,10 @@ use rosidl_runtime_rs::{Message, RmwMessage};
 
 use crate::{
     error::{RclReturnCode, ToResult},
+    get_typesupport_handle,
     qos::QoSProfile,
     rcl_bindings::*,
-    NodeHandle, RclrsError, ENTITY_LIFECYCLE_MUTEX,
+    MessageTypeName, NodeHandle, RclrsError, SerializedMessage, ENTITY_LIFECYCLE_MUTEX,
 };
 
 mod callback;
@@ -316,21 +317,81 @@ where
     }
 }
 
-pub struct GenericSubscription
-{
+pub struct GenericSubscription {
+    pub(crate) handle: Arc<SubscriptionHandle>,
+    /// The callback function that runs when a message was received.
+    pub callback: Mutex<AnySubscriptionCallback<SerializedMessage>>,
 }
 
-impl GenericSubscription
-{
+impl GenericSubscription {
     pub fn new<Args>(
         node_handle: Arc<NodeHandle>,
+        ts_lib: Arc<libloading::Library>,
         topic: &str,
-        type_name: &str,
+        full_type: &str,
         qos: QoSProfile,
         callback: impl SubscriptionCallback<SerializedMessage, Args>,
-    ) -> Result<Self, RclrsError>
-    {
-        Ok(Self {})
+    ) -> Result<Self, RclrsError> {
+        // SAFETY: Getting a zero-initialized value is always safe.
+        let mut rcl_subscription = unsafe { rcl_get_zero_initialized_subscription() };
+        let (package_name, _, type_name) = crate::extract_type_identifier(full_type).unwrap();
+        let message_type_name = MessageTypeName {
+            package_name,
+            type_name,
+        };
+        let type_support = unsafe {
+            get_typesupport_handle(&*ts_lib, "rosidl_typesupport_c", &message_type_name).unwrap()
+        };
+        let topic_c_string = CString::new(topic).map_err(|err| RclrsError::StringContainsNul {
+            err,
+            s: topic.into(),
+        })?;
+
+        // SAFETY: No preconditions for this function.
+        let mut subscription_options = unsafe { rcl_subscription_get_default_options() };
+        subscription_options.qos = qos.into();
+
+        {
+            let rcl_node = node_handle.rcl_node.lock().unwrap();
+            let _lifecycle_lock = ENTITY_LIFECYCLE_MUTEX.lock().unwrap();
+            unsafe {
+                // SAFETY:
+                // * The rcl_subscription is zero-initialized as mandated by this function.
+                // * The rcl_node is kept alive by the NodeHandle because it is a dependency of the subscription.
+                // * The topic name and the options are copied by this function, so they can be dropped afterwards.
+                // * The entity lifecycle mutex is locked to protect against the risk of global
+                //   variables in the rmw implementation being unsafely modified during cleanup.
+                rcl_subscription_init(
+                    &mut rcl_subscription,
+                    &*rcl_node,
+                    type_support,
+                    topic_c_string.as_ptr(),
+                    &subscription_options,
+                )
+                .ok()?;
+            }
+        }
+
+        let handle = Arc::new(SubscriptionHandle {
+            rcl_subscription: Mutex::new(rcl_subscription),
+            node_handle,
+            in_use_by_wait_set: Arc::new(AtomicBool::new(false)),
+        });
+
+        Ok(Self {
+            handle,
+            callback: Mutex::new(callback.into_callback()),
+        })
+    }
+}
+
+impl SubscriptionBase for GenericSubscription {
+    fn handle(&self) -> &SubscriptionHandle {
+        &self.handle
+    }
+
+    fn execute(&self) -> Result<(), RclrsError> {
+        unimplemented!()
     }
 }
 

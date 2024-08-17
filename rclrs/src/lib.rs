@@ -9,6 +9,7 @@ mod arguments;
 mod client;
 mod clock;
 mod context;
+mod dynamic_message;
 mod error;
 mod executor;
 mod node;
@@ -27,14 +28,13 @@ mod test_helpers;
 
 mod rcl_bindings;
 
-pub mod dynamic_message;
-
 use std::{sync::Arc, time::Duration};
 
 pub use arguments::*;
 pub use client::*;
 pub use clock::*;
 pub use context::*;
+pub use dynamic_message::*;
 pub use error::*;
 pub use executor::*;
 pub use node::*;
@@ -114,21 +114,21 @@ pub fn create_node_builder(context: &Context, node_name: &str) -> NodeBuilder {
 pub fn extract_type_identifier(full_type: &str) -> Result<(String, String, String), RclrsError> {
     let type_separator = "/";
 
-    let sep_position_back = full_type.rfind(type_separator)?;
-    let sep_position_front = full_type.find(type_separator)?;
+    let sep_position_back = full_type.rfind(type_separator).unwrap();
+    let sep_position_front = full_type.find(type_separator).unwrap();
 
     if sep_position_back == 0 || sep_position_back == full_type.len() - 1 {
         panic!("ERROR");
     }
 
-    let package_name = full_type.get(0..sep_position_front)?;
+    let package_name = full_type.get(0..sep_position_front).unwrap();
     let middle_module = if sep_position_back - sep_position_front > 0 {
         full_type
-            .get(sep_position_front + 1..sep_position_back)?
+            .get(sep_position_front + 1..sep_position_back).unwrap()
     } else {
         ""
     };
 
-    let type_name = full_type.get(sep_position_back + 1..full_type.len())?;
+    let type_name = full_type.get(sep_position_back + 1..full_type.len()).unwrap();
     Ok((package_name.to_string(), middle_module.to_string(), type_name.to_string()))
 }
