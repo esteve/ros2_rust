@@ -152,15 +152,15 @@ impl WaitSet {
         )?;
 
         for live_subscription in &live_subscriptions {
-            wait_set.add_subscription(live_subscription.clone())?;
+            wait_set.add_subscription(Arc::clone(&live_subscription))?;
         }
 
         for live_client in &live_clients {
-            wait_set.add_client(live_client.clone())?;
+            wait_set.add_client(Arc::clone(&live_client))?;
         }
 
         for live_guard_condition in &live_guard_conditions {
-            wait_set.add_guard_condition(live_guard_condition.clone())?;
+            wait_set.add_guard_condition(Arc::clone(&live_guard_condition))?;
         }
 
         for live_service in &live_services {
@@ -367,6 +367,7 @@ impl WaitSet {
             services: Vec::new(),
         };
         for (i, subscription) in self.subscriptions.iter().enumerate() {
+            println!("Checking if subscription is ready");
             // SAFETY: The `subscriptions` entry is an array of pointers, and this dereferencing is
             // equivalent to
             // https://github.com/ros2/rcl/blob/35a31b00a12f259d492bf53c0701003bd7f1745c/rcl/include/rcl/wait.h#L419

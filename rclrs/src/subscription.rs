@@ -383,6 +383,21 @@ impl GenericSubscription {
             callback: Mutex::new(callback.into_callback()),
         })
     }
+
+    pub fn take(&self) -> Result<(SerializedMessage, MessageInfo), RclrsError> {
+        let mut rmw_message = SerializedMessage::default();
+        let message_info = MessageInfo {
+            source_timestamp: None,
+            received_timestamp: None,
+            publication_sequence_number: 0,
+            reception_sequence_number: 0,
+            publisher_gid: PublisherGid {
+                data: [0; RMW_GID_STORAGE_SIZE],
+                implementation_identifier: std::ptr::null(),
+            },
+        };
+        Ok((rmw_message, message_info))
+    }
 }
 
 impl SubscriptionBase for GenericSubscription {
@@ -391,7 +406,44 @@ impl SubscriptionBase for GenericSubscription {
     }
 
     fn execute(&self) -> Result<(), RclrsError> {
-        unimplemented!()
+        println!("GenericSubscription::execute() called");
+        // Immediately evaluated closure, to handle SubscriptionTakeFailed
+        // outside this match
+        match (|| {
+            match &mut *self.callback.lock().unwrap() {
+                AnySubscriptionCallback::Regular(cb) => {
+                    println!("GenericSubscription::execute() called for a regular message");
+                    let (msg, _) = self.take()?;
+                    cb(msg)
+                }
+                AnySubscriptionCallback::RegularWithMessageInfo(cb) => {
+                    println!("GenericSubscription::execute() called for a regular message with message info");
+                }
+                AnySubscriptionCallback::Boxed(cb) => {
+                    println!("GenericSubscription::execute() called for a boxed message");
+                }
+                AnySubscriptionCallback::BoxedWithMessageInfo(cb) => {
+                    println!("GenericSubscription::execute() called for a boxed message with message info");
+                }
+                AnySubscriptionCallback::Loaned(cb) => {
+                    println!("GenericSubscription::execute() called for a loaned message");
+                }
+                AnySubscriptionCallback::LoanedWithMessageInfo(cb) => {
+                    println!("GenericSubscription::execute() called for a loaned message with message info");
+                }
+            }
+            Ok(())
+        })() {
+            Err(RclrsError::RclError {
+                code: RclReturnCode::SubscriptionTakeFailed,
+                ..
+            }) => {
+                // Spurious wakeup – this may happen even when a waitset indicated that this
+                // subscription was ready, so it shouldn't be an error.
+                Ok(())
+            }
+            other => other,
+        }
     }
 }
 
