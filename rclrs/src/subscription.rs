@@ -388,17 +388,6 @@ impl GenericSubscription {
     pub fn take(&self) -> Result<(SerializedMessage, MessageInfo), RclrsError> {
         let mut rmw_message = SerializedMessage::default();
         let message_info = self.take_inner(&mut rmw_message)?;
-
-        // let message_info = MessageInfo {
-        //     source_timestamp: None,
-        //     received_timestamp: None,
-        //     publication_sequence_number: 0,
-        //     reception_sequence_number: 0,
-        //     publisher_gid: PublisherGid {
-        //         data: [0; RMW_GID_STORAGE_SIZE],
-        //         implementation_identifier: std::ptr::null(),
-        //     },
-        // };
         Ok((rmw_message, message_info))
     }
 
@@ -410,12 +399,9 @@ impl GenericSubscription {
         let mut message_info = unsafe { rmw_get_zero_initialized_message_info() };
         let rcl_subscription = &mut *self.handle.lock();
         unsafe {
-            // SAFETY: The first two pointers are valid/initialized, and do not need to be valid
-            // beyond the function call.
-            // The latter two pointers are explicitly allowed to be NULL.
             rcl_take_serialized_message(
                 rcl_subscription,
-                rmw_message as *mut <dynamic_message::SerializedMessage as Message>::RmwMsg as *mut _,
+                &mut *rmw_message.handle().rcl_serialized_message.lock().unwrap(),
                 &mut message_info,
                 std::ptr::null_mut(),
             )
@@ -431,13 +417,11 @@ impl SubscriptionBase for GenericSubscription {
     }
 
     fn execute(&self) -> Result<(), RclrsError> {
-        println!("GenericSubscription::execute() called");
         // Immediately evaluated closure, to handle SubscriptionTakeFailed
         // outside this match
         match (|| {
             match &mut *self.callback.lock().unwrap() {
                 AnySubscriptionCallback::Regular(cb) => {
-                    println!("GenericSubscription::execute() called for a regular message");
                     let (msg, _) = self.take()?;
                     cb(msg)
                 }

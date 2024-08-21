@@ -367,7 +367,6 @@ impl WaitSet {
             services: Vec::new(),
         };
         for (i, subscription) in self.subscriptions.iter().enumerate() {
-            println!("Checking if subscription is ready");
             // SAFETY: The `subscriptions` entry is an array of pointers, and this dereferencing is
             // equivalent to
             // https://github.com/ros2/rcl/blob/35a31b00a12f259d492bf53c0701003bd7f1745c/rcl/include/rcl/wait.h#L419

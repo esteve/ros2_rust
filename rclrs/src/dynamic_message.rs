@@ -298,8 +298,14 @@ impl SerializedMessage {
     }
 }
 
-pub(crate) struct SerializedMessageHandle {
+pub struct SerializedMessageHandle {
     pub(crate) rcl_serialized_message: Mutex<rcl_serialized_message_t>,
+}
+
+impl SerializedMessageHandle {
+    pub fn get_rcl_serialized_message(&self) -> &Mutex<rcl_serialized_message_t> {
+        &self.rcl_serialized_message
+    }
 }
 
 impl Drop for rcl_serialized_message_t {
