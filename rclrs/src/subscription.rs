@@ -7,6 +7,7 @@ use std::{
 use rosidl_runtime_rs::{Message, RmwMessage};
 
 use crate::{
+    dynamic_message,
     error::{RclReturnCode, ToResult},
     get_typesupport_handle,
     qos::QoSProfile,
@@ -386,17 +387,41 @@ impl GenericSubscription {
 
     pub fn take(&self) -> Result<(SerializedMessage, MessageInfo), RclrsError> {
         let mut rmw_message = SerializedMessage::default();
-        let message_info = MessageInfo {
-            source_timestamp: None,
-            received_timestamp: None,
-            publication_sequence_number: 0,
-            reception_sequence_number: 0,
-            publisher_gid: PublisherGid {
-                data: [0; RMW_GID_STORAGE_SIZE],
-                implementation_identifier: std::ptr::null(),
-            },
-        };
+        let message_info = self.take_inner(&mut rmw_message)?;
+
+        // let message_info = MessageInfo {
+        //     source_timestamp: None,
+        //     received_timestamp: None,
+        //     publication_sequence_number: 0,
+        //     reception_sequence_number: 0,
+        //     publisher_gid: PublisherGid {
+        //         data: [0; RMW_GID_STORAGE_SIZE],
+        //         implementation_identifier: std::ptr::null(),
+        //     },
+        // };
         Ok((rmw_message, message_info))
+    }
+
+    // Inner function, to be used by both regular and boxed versions.
+    fn take_inner(
+        &self,
+        rmw_message: &mut <dynamic_message::SerializedMessage as Message>::RmwMsg,
+    ) -> Result<MessageInfo, RclrsError> {
+        let mut message_info = unsafe { rmw_get_zero_initialized_message_info() };
+        let rcl_subscription = &mut *self.handle.lock();
+        unsafe {
+            // SAFETY: The first two pointers are valid/initialized, and do not need to be valid
+            // beyond the function call.
+            // The latter two pointers are explicitly allowed to be NULL.
+            rcl_take_serialized_message(
+                rcl_subscription,
+                rmw_message as *mut <dynamic_message::SerializedMessage as Message>::RmwMsg as *mut _,
+                &mut message_info,
+                std::ptr::null_mut(),
+            )
+            .ok()?
+        };
+        Ok(MessageInfo::from_rmw_message_info(&message_info))
     }
 }
 

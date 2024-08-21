@@ -8,7 +8,7 @@
 use std::{
     fmt::{self, Display},
     path::PathBuf,
-    sync::Arc,
+    sync::{Arc, Mutex},
 };
 
 use crate::rcl_bindings::{
@@ -17,6 +17,8 @@ use crate::rcl_bindings::{
 
 mod error;
 pub use error::*;
+
+use crate::{rcl_bindings::*, RclrsError, ToResult};
 
 use rosidl_runtime_rs::Message;
 
@@ -150,8 +152,10 @@ impl DynamicMessagePackage {
     /// This dynamically loads a type support library for the specified package.
     pub fn new(package_name: impl Into<String>) -> Result<Self, DynamicMessageError> {
         let package_name = package_name.into();
-        let library_path =
-            get_typesupport_library_path(package_name.as_str(), INTROSPECTION_TYPE_SUPPORT_IDENTIFIER)?;
+        let library_path = get_typesupport_library_path(
+            package_name.as_str(),
+            INTROSPECTION_TYPE_SUPPORT_IDENTIFIER,
+        )?;
         let lib = unsafe { libloading::Library::new(library_path) };
         let lib = lib.map_err(DynamicMessageError::LibraryLoadingError)?;
 
@@ -266,8 +270,53 @@ impl DynamicMessageMetadata {
     }
 }
 
-#[derive(Clone, Debug, Default)]
-pub struct SerializedMessage {}
+#[derive(Clone)]
+pub struct SerializedMessage {
+    pub(crate) handle: Arc<SerializedMessageHandle>,
+}
+
+impl fmt::Debug for SerializedMessage {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("SerializedMessage").finish()
+    }
+}
+
+impl SerializedMessage {
+    pub fn new() -> Result<Self, RclrsError> {
+        let mut rmw_serialized_message = unsafe { rcutils_get_zero_initialized_uint8_array() };
+        let allocator = unsafe { rcutils_get_default_allocator() };
+        unsafe { rcutils_uint8_array_init(&mut rmw_serialized_message, 0, &allocator) };
+        Ok(Self {
+            handle: Arc::new(SerializedMessageHandle {
+                rcl_serialized_message: Mutex::new(rmw_serialized_message),
+            }),
+        })
+    }
+
+    pub fn handle(&self) -> &SerializedMessageHandle {
+        &self.handle
+    }
+}
+
+pub(crate) struct SerializedMessageHandle {
+    pub(crate) rcl_serialized_message: Mutex<rcl_serialized_message_t>,
+}
+
+impl Drop for rcl_serialized_message_t {
+    fn drop(&mut self) {
+        unsafe { rcutils_uint8_array_fini(self) };
+    }
+}
+
+impl Default for SerializedMessage {
+    fn default() -> Self {
+        Self::new().unwrap()
+    }
+}
+
+unsafe impl Send for rcl_serialized_message_t {}
+
+unsafe impl Sync for rcl_serialized_message_t {}
 
 impl Message for SerializedMessage {
     type RmwMsg = Self;
