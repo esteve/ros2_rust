@@ -1,0 +1,6 @@
+[workspace]
+members = [
+  "rclrs",
+  "examples/minimal_pub_sub",
+]
+resolver = "2"
