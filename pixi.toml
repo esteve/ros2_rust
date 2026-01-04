@@ -1,0 +1,29 @@
+[workspace]
+authors = ["Esteve Fernandez <esteve@apache.org>"]
+channels = [
+  "https://prefix.dev/robostack-jazzy",
+  "https://prefix.dev/conda-forge",
+]
+name = "ros2_rust"
+version = "0.1.0"
+platforms = [
+  "osx-arm64",
+  "win-64",
+  "linux-64",
+]
+preview = ["pixi-build"]
+
+
+[tasks]
+
+[dependencies]
+libclang = ">=21.1.7,<22"
+python = ">=3.14.2,<3.15"
+colcon-core = ">=0.20.1,<0.21"
+colcon-defaults = ">=0.2.9,<0.3"
+colcon-ros = ">=0.5.0,<0.6"
+rclrs = { path = "rclrs" }
+
+[pypi-dependencies]
+colcon-ros-cargo = { git = "https://github.com/colcon/colcon-ros-cargo.git" }
+colcon-cargo = { git = "https://github.com/colcon/colcon-cargo.git" }

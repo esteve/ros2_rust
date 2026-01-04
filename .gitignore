@@ -223,3 +223,6 @@ Cargo.lock
 **/.cargo/config.toml
 
 # End of https://www.toptal.com/developers/gitignore/api/cmake,rust,python,cpp,c
+# pixi environments
+.pixi/*
+!.pixi/config.toml
