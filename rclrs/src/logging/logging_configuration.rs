@@ -1,10 +1,6 @@
-use std::sync::{Arc, Mutex, OnceLock, Weak};
+use std::sync::{Arc, OnceLock};
 
 use crate::{rcl_bindings::*, RclrsError, ToResult, ENTITY_LIFECYCLE_MUTEX};
-
-struct LoggingConfiguration {
-    lifecycle: Mutex<Weak<LoggingLifecycle>>,
-}
 
 pub(crate) struct LoggingLifecycle;
 
@@ -22,31 +18,21 @@ impl LoggingLifecycle {
         Ok(Self)
     }
 
+    /// Initializes the ROS 2 logging subsystem, or returns the existing handle.
+    ///
+    /// Logging is initialized exactly once and is never finalized for the
+    /// lifetime of the process. This avoids a race condition where
+    /// `rcl_logging_fini` could run while other threads are still logging.
+    /// The OS reclaims all resources when the process exits.
+    ///
     /// SAFETY: Ensure rcl_context_t is valid before passing it in.
     pub(crate) unsafe fn configure(
         context: &rcl_context_t,
     ) -> Result<Arc<LoggingLifecycle>, RclrsError> {
-        static CONFIGURATION: OnceLock<LoggingConfiguration> = OnceLock::new();
-        let configuration = CONFIGURATION.get_or_init(|| LoggingConfiguration {
-            lifecycle: Mutex::new(Weak::new()),
-        });
-
-        let mut lifecycle = configuration.lifecycle.lock().unwrap();
-        if let Some(arc_lifecycle) = lifecycle.upgrade() {
-            return Ok(arc_lifecycle);
-        }
-        let arc_lifecycle = Arc::new(LoggingLifecycle::new(&context.global_arguments)?);
-        *lifecycle = Arc::downgrade(&arc_lifecycle);
-        Ok(arc_lifecycle)
-    }
-}
-
-impl Drop for LoggingLifecycle {
-    fn drop(&mut self) {
-        let _lock = ENTITY_LIFECYCLE_MUTEX.lock().unwrap();
-        unsafe {
-            rcl_logging_fini();
-        }
+        static LIFECYCLE: OnceLock<Arc<LoggingLifecycle>> = OnceLock::new();
+        LIFECYCLE
+            .get_or_try_init(|| Ok(Arc::new(LoggingLifecycle::new(&context.global_arguments)?)))
+            .map(Arc::clone)
     }
 }
 
